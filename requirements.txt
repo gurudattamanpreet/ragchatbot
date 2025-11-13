@@ -1,24 +1,29 @@
+# FastAPI and Server
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 python-dotenv==1.0.0
 pydantic==2.5.0
 
-# LangChain dependencies
+# LangChain Core
 langchain==0.1.0
 langchain-community==0.0.20
-langchain-groq==0.0.3
-langchain-huggingface==0.0.1
+langchain-groq==0.1.0
+langchain-core==0.1.10
 
-# Vector store and embeddings
-faiss-cpu==1.7.4
+# Groq SDK
+groq==0.4.2
+
+# Embeddings and Vector Store
 sentence-transformers==2.2.2
+faiss-cpu==1.7.4
+huggingface-hub==0.19.4
 
-# Document loaders
+# Document Loaders
 pypdf==3.17.4
 docx2txt==0.8
 
-# Additional dependencies
-torch==2.1.0
+# Additional Dependencies
 transformers==4.35.0
-huggingface-hub==0.19.4
+torch==2.1.0
+numpy==1.24.3
