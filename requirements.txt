@@ -15,15 +15,15 @@ langchain-core==0.1.10
 groq==0.4.2
 
 # Embeddings and Vector Store
-sentence-transformers==2.2.2
+sentence-transformers
 faiss-cpu
-huggingface-hub==0.19.4
+huggingface-hub
 
 # Document Loaders
 pypdf==3.17.4
 docx2txt==0.8
 
 # Additional Dependencies
-transformers==4.35.0
-torch==2.0.1
+transformers
+torch
 numpy==1.24.3
