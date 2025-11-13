@@ -19,18 +19,12 @@ load_dotenv()
 
 # LangChain imports
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
-
-# For DOCX files
-try:
-    from langchain_community.document_loaders import Docx2txtLoader
-except:
-    from langchain_community.document_loaders import UnstructuredWordDocumentLoader as Docx2txtLoader
 
 # Configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -78,7 +72,6 @@ def initialize_embeddings():
     global embeddings
     if embeddings is None:
         print("🔄 Loading embeddings model...")
-        from langchain_community.embeddings import HuggingFaceEmbeddings
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
             model_kwargs={'device': 'cpu'}
