@@ -1,5 +1,5 @@
 """
-RAG Chatbot - Memory Optimized for Render Free Tier
+RAG Chatbot - Debug Version with Better Error Handling
 """
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -12,19 +12,44 @@ import shutil
 from pathlib import Path
 import uvicorn
 from dotenv import load_dotenv
-import gc  # Garbage collector for memory optimization
+import gc
+import traceback
+import sys
 
 # Load environment variables
 load_dotenv()
 
-# LangChain imports
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
-from langchain.chains import ConversationalRetrievalChain
-from langchain.memory import ConversationBufferMemory
+print("=" * 70)
+print("🔍 DEBUGGING INFO")
+print("=" * 70)
+print(f"Python Version: {sys.version}")
+print(f"Current Working Directory: {os.getcwd()}")
+print(f"PORT from env: {os.environ.get('PORT', 'Not set')}")
+print(f"GROQ_API_KEY present: {'Yes' if os.getenv('GROQ_API_KEY') else 'No'}")
+print("=" * 70)
+
+# Try importing LangChain components with error handling
+try:
+    print("📦 Importing LangChain components...")
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
+    from langchain_community.vectorstores import FAISS
+    from langchain_groq import ChatGroq
+    from langchain.chains import ConversationalRetrievalChain
+    from langchain.memory import ConversationBufferMemory
+    print("✅ LangChain imports successful!")
+except Exception as e:
+    print(f"❌ LangChain import error: {str(e)}")
+    traceback.print_exc()
+
+# Try importing embeddings
+try:
+    print("📦 Importing embeddings...")
+    from langchain_huggingface import HuggingFaceEmbeddings
+    print("✅ Embeddings import successful!")
+except Exception as e:
+    print(f"❌ Embeddings import error: {str(e)}")
+    traceback.print_exc()
 
 # Configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -50,6 +75,7 @@ vectorstore = None
 qa_chain = None
 current_document = None
 embeddings = None
+embeddings_error = None
 
 # Create upload directory
 UPLOAD_DIR = Path("uploaded_documents")
@@ -66,19 +92,28 @@ class ChatResponse(BaseModel):
     confidence: Optional[float] = None
 
 
-# Initialize embeddings once - LAZY LOADING for memory optimization
 def initialize_embeddings():
-    """Load embeddings model once when needed"""
-    global embeddings
-    if embeddings is None:
+    """Load embeddings model with better error handling"""
+    global embeddings, embeddings_error
+    
+    if embeddings is not None:
+        return True
+        
+    try:
         print("🔄 Loading embeddings model...")
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
             model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}  # Better memory usage
+            encode_kwargs={'normalize_embeddings': True}
         )
-        print("✅ Embeddings loaded!")
-        gc.collect()  # Clean up memory
+        print("✅ Embeddings loaded successfully!")
+        gc.collect()
+        return True
+    except Exception as e:
+        embeddings_error = str(e)
+        print(f"❌ Embeddings loading failed: {embeddings_error}")
+        traceback.print_exc()
+        return False
 
 
 def load_document(file_path: str):
@@ -106,7 +141,8 @@ def process_document(file_path: str):
     print(f"{'=' * 60}")
 
     # Initialize embeddings if not already loaded
-    initialize_embeddings()
+    if not initialize_embeddings():
+        raise Exception(f"Failed to initialize embeddings: {embeddings_error}")
 
     # Load document
     print("📄 Loading document...")
@@ -131,7 +167,7 @@ def process_document(file_path: str):
     print("🧠 Creating vector store...")
     vectorstore = FAISS.from_documents(splits, embeddings)
     print("✅ Vector store created!")
-    gc.collect()  # Clean up memory
+    gc.collect()
 
     # Create LLM
     print("🤖 Setting up AI model...")
@@ -168,14 +204,14 @@ def process_document(file_path: str):
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    """Main interface"""
+    """Main interface with enhanced error display"""
     return """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Parser</title>
+    <title>Document Parser - Debug Mode</title>
     <style>
         * {
             margin: 0;
@@ -212,6 +248,15 @@ async def home():
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
+        }
+
+        .debug-info {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 10px;
+            font-size: 0.9em;
         }
 
         #uploadSection, #chatSection {
@@ -288,6 +333,11 @@ async def home():
         .status.error {
             background: #f8d7da;
             color: #721c24;
+            white-space: pre-wrap;
+            text-align: left;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
         }
 
         .chat-box {
@@ -404,6 +454,10 @@ async def home():
             <p>Upload a document and chat with AI</p>
         </div>
 
+        <div class="debug-info">
+            ⚠️ Debug Mode Active - Detailed error messages will be shown
+        </div>
+
         <!-- Upload Section -->
         <div id="uploadSection">
             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
@@ -499,10 +553,10 @@ async def home():
                         chatInput.focus();
                     }, 2000);
                 } else {
-                    showStatus('❌ ' + result.detail, 'error');
+                    showStatus('❌ Error Details:\n\n' + JSON.stringify(result, null, 2), 'error');
                 }
             } catch (error) {
-                showStatus('❌ Error: ' + error.message, 'error');
+                showStatus('❌ Network Error:\n' + error.message + '\n\nStack: ' + error.stack, 'error');
             }
         }
 
@@ -534,7 +588,7 @@ async def home():
                 if (response.ok) {
                     addMessage(result.answer, 'bot');
                 } else {
-                    addMessage('❌ Error: ' + result.detail, 'bot');
+                    addMessage('❌ Error: ' + JSON.stringify(result, null, 2), 'bot');
                 }
             } catch (error) {
                 loadingMsg.remove();
@@ -559,6 +613,12 @@ async def home():
 
             return messageDiv;
         }
+
+        // Test health endpoint on load
+        fetch('/health')
+            .then(res => res.json())
+            .then(data => console.log('Health check:', data))
+            .catch(err => console.error('Health check failed:', err));
     </script>
 </body>
 </html>
@@ -567,7 +627,7 @@ async def home():
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
-    """Upload and process document"""
+    """Upload and process document with detailed error logging"""
     global current_document
 
     print(f"\n{'=' * 60}")
@@ -595,10 +655,19 @@ async def upload_document(file: UploadFile = File(...)):
         })
 
     except Exception as e:
-        print(f"❌ ERROR: {str(e)}")
+        error_msg = f"Error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        print(f"❌ ERROR: {error_msg}")
         if file_path and file_path.exists():
             file_path.unlink()
-        raise HTTPException(status_code=500, detail=str(e))
+        
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": str(e),
+                "traceback": traceback.format_exc(),
+                "embeddings_error": embeddings_error
+            }
+        )
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -619,32 +688,65 @@ async def chat(request: ChatRequest):
             confidence=0.85
         )
     except Exception as e:
-        print(f"❌ Chat error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = f"Chat error: {str(e)}\n\n{traceback.format_exc()}"
+        print(f"❌ {error_msg}")
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @app.get("/health")
 async def health():
-    """Health check"""
+    """Health check with detailed system info"""
     return {
         "status": "healthy",
         "document_loaded": current_document is not None,
-        "current_document": current_document
+        "current_document": current_document,
+        "embeddings_loaded": embeddings is not None,
+        "embeddings_error": embeddings_error,
+        "python_version": sys.version,
+        "groq_key_present": bool(GROQ_API_KEY)
+    }
+
+
+@app.get("/debug")
+async def debug_info():
+    """Debug endpoint to check system status"""
+    import pkg_resources
+    
+    installed_packages = {pkg.key: pkg.version for pkg in pkg_resources.working_set}
+    
+    return {
+        "python_version": sys.version,
+        "cwd": os.getcwd(),
+        "env_vars": {
+            "PORT": os.environ.get("PORT", "Not set"),
+            "GROQ_API_KEY": "Present" if GROQ_API_KEY else "Missing"
+        },
+        "embeddings_status": {
+            "loaded": embeddings is not None,
+            "error": embeddings_error
+        },
+        "key_packages": {
+            "fastapi": installed_packages.get("fastapi"),
+            "langchain": installed_packages.get("langchain"),
+            "sentence-transformers": installed_packages.get("sentence-transformers"),
+            "faiss-cpu": installed_packages.get("faiss-cpu"),
+        }
     }
 
 
 @app.on_event("startup")
 async def startup():
-    """Initialize on startup - DON'T load embeddings yet"""
+    """Initialize on startup"""
     print("\n" + "=" * 70)
-    print("🚀 RAG CHATBOT STARTING")
+    print("🚀 RAG CHATBOT STARTING (DEBUG MODE)")
     print("=" * 70)
     print("⚡ Lazy loading enabled - embeddings will load on first upload")
+    print("🔍 Visit /debug for system information")
     print("✅ Ready to accept documents!")
     print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":
-    # Get port from environment variable (Render sets this)
     port = int(os.environ.get("PORT", 8000))
+    print(f"\n🌐 Starting server on port {port}...")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
