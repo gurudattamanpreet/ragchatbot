@@ -1,6 +1,5 @@
 """
-RAG Chatbot - Working Version
-Simple and Reliable Document Q&A System
+RAG Chatbot - Memory Optimized for Render Free Tier
 """
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -13,6 +12,7 @@ import shutil
 from pathlib import Path
 import uvicorn
 from dotenv import load_dotenv
+import gc  # Garbage collector for memory optimization
 
 # Load environment variables
 load_dotenv()
@@ -66,17 +66,19 @@ class ChatResponse(BaseModel):
     confidence: Optional[float] = None
 
 
-# Initialize embeddings once
+# Initialize embeddings once - LAZY LOADING for memory optimization
 def initialize_embeddings():
-    """Load embeddings model once at startup"""
+    """Load embeddings model once when needed"""
     global embeddings
     if embeddings is None:
         print("🔄 Loading embeddings model...")
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={'device': 'cpu'}
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}  # Better memory usage
         )
         print("✅ Embeddings loaded!")
+        gc.collect()  # Clean up memory
 
 
 def load_document(file_path: str):
@@ -103,6 +105,9 @@ def process_document(file_path: str):
     print(f"🔄 Processing document...")
     print(f"{'=' * 60}")
 
+    # Initialize embeddings if not already loaded
+    initialize_embeddings()
+
     # Load document
     print("📄 Loading document...")
     documents = load_document(file_path)
@@ -117,10 +122,16 @@ def process_document(file_path: str):
     splits = text_splitter.split_documents(documents)
     print(f"✅ Created {len(splits)} chunks")
 
+    # Clear old vectorstore if exists
+    if vectorstore is not None:
+        del vectorstore
+        gc.collect()
+
     # Create vector store
     print("🧠 Creating vector store...")
     vectorstore = FAISS.from_documents(splits, embeddings)
     print("✅ Vector store created!")
+    gc.collect()  # Clean up memory
 
     # Create LLM
     print("🤖 Setting up AI model...")
@@ -291,12 +302,18 @@ async def home():
         .message {
             margin-bottom: 15px;
             display: flex;
-            animation: fadeIn 0.3s;
+            animation: slideIn 0.3s;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .message.user {
@@ -307,8 +324,7 @@ async def home():
             max-width: 70%;
             padding: 15px 20px;
             border-radius: 20px;
-            line-height: 1.8;
-            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         .message.user .message-content {
@@ -318,8 +334,8 @@ async def home():
 
         .message.bot .message-content {
             background: white;
-            border: 1px solid #e0e0e0;
             color: #333;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
         .input-area {
@@ -336,11 +352,15 @@ async def home():
             outline: none;
         }
 
+        .chat-input:focus {
+            border-color: #764ba2;
+        }
+
         .send-btn {
-            padding: 15px 30px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
+            padding: 15px 30px;
             border-radius: 25px;
             cursor: pointer;
             font-size: 1em;
@@ -615,14 +635,16 @@ async def health():
 
 @app.on_event("startup")
 async def startup():
-    """Initialize on startup"""
+    """Initialize on startup - DON'T load embeddings yet"""
     print("\n" + "=" * 70)
     print("🚀 RAG CHATBOT STARTING")
     print("=" * 70)
-    initialize_embeddings()
+    print("⚡ Lazy loading enabled - embeddings will load on first upload")
     print("✅ Ready to accept documents!")
     print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    # Get port from environment variable (Render sets this)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
