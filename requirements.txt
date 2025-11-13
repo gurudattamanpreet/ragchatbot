@@ -14,16 +14,18 @@ langchain-core==0.1.10
 # Groq SDK
 groq==0.4.2
 
-# Embeddings and Vector Store
-sentence-transformers==2.2.2
-faiss-cpu==1.12.0
-huggingface-hub==0.19.4
+# Embeddings and Vector Store (using HuggingFace)
+langchain-huggingface==0.0.1
+sentence-transformers==2.3.1
+faiss-cpu==1.7.4
+huggingface-hub==0.20.3
 
 # Document Loaders
 pypdf==3.17.4
 docx2txt==0.8
 
-# Additional Dependencies
-transformers==4.35.2
-torch==2.1.0
+# Additional Dependencies - Updated versions
+transformers==4.36.2
+torch==2.1.2
 numpy==1.24.3
+tokenizers==0.15.1
