@@ -16,7 +16,7 @@ groq==0.4.2
 
 # Embeddings and Vector Store
 sentence-transformers==2.2.2
-faiss-cpu
+faiss-cpu==1.7.3
 huggingface-hub==0.19.4
 
 # Document Loaders
