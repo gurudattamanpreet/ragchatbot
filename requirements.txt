@@ -1,31 +1,30 @@
 # FastAPI and Server
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-multipart==0.0.6
-python-dotenv==1.0.0
-pydantic==2.5.0
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+python-dotenv>=1.0.0
+pydantic>=2.5.0
 
-# LangChain Core (minimal setup)
-langchain==0.1.0
-langchain-community==0.0.20
-langchain-groq==0.1.0
-langchain-core==0.1.10
-langchain-huggingface==0.0.1
+# LangChain
+langchain>=0.1.0
+langchain-community>=0.0.20
+langchain-groq>=0.1.0
+langchain-core>=0.1.10
+langchain-huggingface>=0.0.1
 
-# Groq SDK
-groq==0.4.2
+# Groq
+groq>=0.4.2
 
-# Embeddings and Vector Store
-sentence-transformers==3.0.1
-faiss-cpu==1.8.0
-huggingface-hub==0.23.0
+# Embeddings (Let pip resolve versions)
+sentence-transformers
+faiss-cpu
+huggingface-hub
 
 # Document Loaders
-pypdf==4.2.0
-docx2txt==0.8
+pypdf
+docx2txt
 
-# Dependencies (compatible versions)
-transformers==4.40.0
-torch==2.3.0
-numpy==1.26.4
-tokenizers==0.19.1
+# ML Dependencies
+torch
+transformers
+numpy<2.0.0
