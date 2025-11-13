@@ -16,8 +16,7 @@ groq==0.4.2
 
 # Embeddings and Vector Store
 sentence-transformers==2.2.2
-# --- FIX IS HERE ---
-faiss-cpu==1.8.0
+faiss-cpu==1.7.4
 huggingface-hub==0.19.4
 
 # Document Loaders
